@@ -1,0 +1,187 @@
+---
+name: Architecture Explorer
+description: Build and query a local repository knowledge graph, and generate or refresh an interactive architecture explorer for this repository.
+---
+
+Build a local repository index inspired by Graphify. Use repository tools
+and built-in language libraries for indexing and queries. The workflow
+must run without the Graphify package, CLI, service, or external API calls.
+
+## Build and query the local graph
+
+- On the first run, create small reusable index and query commands using
+  a runtime already available in the repo. Reuse any existing parser or
+  symbol index where practical. Record supported languages and gaps.
+- Store the index in `docs/architecture-graph.json`. Use stable IDs for
+  files, symbols, and application components. Record typed, directed
+  relationships such as defines, imports, calls, and registers. Attach
+  a file and symbol or line range to each edge. Label edges as extracted
+  or inferred and report unresolved references.
+- Index structure with local parsers where available. Use source
+  inspection to establish application roles, runtime handoffs, and
+  branch conditions. Respect repository ignore rules and exclude
+  generated outputs from indexing.
+- On refresh, compare file fingerprints with the previous index. Reuse
+  entries for unchanged files, remove entries for deleted files, and
+  re-resolve edges affected by changed or renamed files. Use an explicit
+  rebuild when the index format changes or its baseline is invalid.
+- Support symbol lookup, bounded neighborhood queries, and a path
+  between two named nodes. Default to at most two hops and 12 results.
+  Return compact source references, list ambiguous matches, and flag
+  omitted results. Keep the full graph on disk during routine questions.
+- For a cross-module question, query the index first and read the
+  relevant source ranges to verify the answer. Use IDE search for exact
+  strings and whenever the index is missing, stale, or inconclusive.
+- Use the local graph to seed the architecture explorer and check every
+  walkthrough against source. Static edges describe relationships.
+  Verify call order and runtime decisions before describing execution.
+
+## Generate the architecture explorer
+
+- `docs/architecture-map.json` contains components, connections, walkthroughs, and source references.
+- `docs/architecture-explorer.html` is a self-contained page that embeds the same map data and opens directly in a browser.
+
+If the repository already has an architecture explorer, reuse its existing paths and conventions. If it has a renderer, use it to generate the HTML from the map.
+
+## Inspect the repository
+
+- Use scoped graph queries, manifests, routes, startup code, and orchestration registrations to inventory entry points and trace every distinct source-supported orchestration flow. Check workers, scheduled jobs, event handlers, and tool dispatch where present.
+- Include paths that change the handoff or outcome, such as alternate routes, tool choices, fallbacks, retries, and error or empty-result paths. Give each distinct flow its own dropdown entry. Share steps in the data where paths overlap, and describe loops through their exit conditions without enumerating repeated iterations.
+- Reconcile the flow inventory with the dropdown. Record unresolved runtime paths as coverage gaps with their source locations and the missing evidence.
+- Model components by application role. One file can support multiple roles, and one role can span multiple files.
+- Record each component's name, purpose, source paths, relevant symbols, inputs, and outputs where verified.
+- Record each connection's direction, what crosses it, and the file and symbol or line that supports it. Mark unresolved runtime connections as unverified.
+- Give each component and connection a stable ID. Each walkthrough step should reference the components and connections it uses, with an action title and supporting source references.
+- Use the repository's terminology. Choose walkthroughs and architecture layers that fit the application.
+
+## Write walkthroughs a new developer can follow
+
+- Start each walkthrough with the triggering action or event, the goal, and
+  the expected visible result or side effect. Trace the flow through to that
+  result, including the return path where it matters.
+- For each step, explain what triggered it, which function, route, handler,
+  or tool runs, what it receives, what it does with that input, and who
+  receives the result next. Name the fields, events, or data shapes that
+  matter when the source establishes them. For the final step, explain the
+  result the caller or user observes.
+- Describe decisions at the step where they happen. State the condition,
+  identify which branch the selected walkthrough takes, and link to
+  other verified walkthroughs from that step. Open an alternate
+  walkthrough paused at the corresponding decision or first point
+  of divergence. Mark runtime-dependent choices and cite the code
+  that governs them.
+- Give each step a repository-relative source path and symbol or line
+  range. If a handoff requires evidence from both the sender and receiver,
+  cite both. Mark gaps explicitly when the source cannot establish a detail.
+- Store the walkthrough explanation in the JSON and render it in the HTML.
+  Use the component inspector for each role's general responsibilities,
+  inputs, and outputs. Use the step panel to explain what that role does
+  in the selected flow.
+
+## Match the reference explorer
+
+- Use a warm off-white background, charcoal text, thin neutral borders, and muted gold accents. Use a clean sans-serif font for labels and monospace for source paths and symbols.
+- On desktop, place a wide **Application map** on the left and a narrower **Selected component** panel on the right. On narrow screens, stack the details panel below the map and keep the diagram readable.
+- Put the walkthrough selector in the sticky toolbar above the map.
+  Group entries by feature or entry point and name them by outcome
+  or branch condition. Keep every traced flow selectable.
+- Arrange the map in horizontal bands with small uppercase headings and generous vertical spacing. Put the main request and response path across the top. Use lower bands for shared rules and tool connections, data preparation and indexes, and local data and connected services where those layers exist.
+- Draw components as compact, lightly rounded cards. Show a bold role name with a smaller source path, symbol, or service label beneath it. Use dark charcoal cards with light text for callable tools where that distinction applies.
+- Connect cards with thin, subdued directional arrows. Use gently curved connectors for cross-band links and keep arrows clear of card labels.
+- Give the selected card a strong charcoal outline. Use a gold top edge or gold connection highlight for related components. Include a small legend for selection and connection states.
+- In the details panel, show the selected component name and a short description. Include **Source files**, **Entry points**, **Receives**, **Returns**, and **Connected components** where verified.
+
+## Build the walkthrough player
+
+- Place the walkthrough toolbar above the first map band and keep it
+  sticky at the top of the viewport while the reader scrolls through
+  the explorer. Include the walkthrough selector, **Restart**,
+  **Previous**, **Next step**, **Play**/**Pause**, and `Step N of M`.
+  Use a solid gold fill for **Next step** and thin neutral borders for
+  the other buttons.
+- Use a compact toolbar with a solid background. Keep it outside any
+  diagram overflow container so vertical page scrolling preserves its
+  sticky behavior. Let controls wrap on narrow screens and offset
+  programmatic scrolling so the toolbar leaves the active card visible.
+- Default to **Selected flow** when a walkthrough is selected. Show
+  its cards and connectors in their original positions and hide
+  unrelated elements. Offer a **Full map** toggle that restores the
+  surrounding architecture, with unrelated elements muted. Switching
+  views preserves the current step and map layout.
+- Start each walkthrough at step one with playback paused. Toggle
+  **Play** to **Pause** during playback and stop at the final step.
+  Disable **Previous** at the first step and **Next step** at the last.
+  **Restart** returns to step one and pauses playback.
+- Between the toolbar and the map, add a pale gold panel labeled **THIS STEP**.
+  Let the panel scroll with the content so long explanations leave
+  room for the map.
+  Show a bold action title, a plain-language explanation, and the source
+  reference. Use a short paragraph for simple handoffs. Add labeled details
+  for inputs, decisions, and the next handoff when the step needs them.
+  Show the core explanation directly in the panel so readers can follow
+  the sequence as they advance.
+- Keep component positions and connector routes fixed throughout playback.
+  Show the selected route in muted gold and distinguish completed handoffs.
+  Emphasize the active arrow and its endpoints. If the step happens within
+  a component, emphasize that card. Show exactly one numbered marker on
+  the map, attached to the active arrow or card.
+- Use the same step number in the map marker, sticky toolbar, step list,
+  and **THIS STEP** panel. In the toolbar, show the current step title
+  and a short handoff or action, such as
+  `Step 3 of 8 · Validate request · API → Orchestrator`. Show the full
+  numbered sequence in a clickable step list. Mark current and completed
+  steps with text or shapes as well as color.
+- Keep automatic scrolling off by default. Provide **Show current step**
+  to locate an offscreen arrow or card and an opt-in **Follow current
+  step** control for playback. Keep keyboard focus on the control the
+  reader used.
+- Keep component selection independent of playback. Clicking a card
+  updates the details panel and highlights its direct neighbors while
+  preserving the current step and its visual priority.
+- Below the step panel, briefly explain that arrows show direct
+  connections and walkthroughs show source-supported example sequences.
+  Run the walkthrough locally with the embedded map data.
+- Make cards and controls keyboard accessible, provide visible focus
+  indicators, and announce the current step to assistive technology.
+
+## Refresh the existing explorer
+
+- On the first run, build the map from source. Record the Git revision
+  and enough working-tree information to detect subsequent changes.
+- On refresh, compare the current source with that baseline, including
+  uncommitted changes. Recheck affected components, their connections,
+  and any walkthroughs that depend on them. Check new or renamed files
+  for entry points and integrations. If the baseline is missing or
+  unreliable, verify the map more broadly.
+- Apply updated flow coverage and playback requirements to existing
+  explorers when requested, including when source fingerprints match.
+- Preserve developer notes, stable IDs, layout, and visual style.
+  Remove connections that the current source no longer supports.
+- Regenerate the HTML when its embedded map data, renderer, or requested
+  layout changes. Apply the sticky toolbar on refresh if an existing
+  explorer still places playback controls below the map.
+
+## Verify before finishing
+
+- Verify referenced files and symbols, connection endpoints, and
+  walkthrough step IDs against the map and repository.
+- Run a scoped local graph query for a known symbol, verify its source
+  reference, and test that a refresh updates changed entries and drops
+  deleted entries.
+- Read every walkthrough in order in the generated HTML. Check that a
+  developer new to the repo can follow the trigger, execution, decisions,
+  handoffs, and outcome. Fill gaps where neighboring steps leave a change
+  in data or control unexplained.
+- Open the generated HTML and check component selection, walkthrough
+  switching, navigation, playback, and end-of-walkthrough behavior.
+- Compare the dropdown entries with the source-backed flow inventory.
+  Play or step through a flow with branches or repeated components and
+  verify that the map stays fixed and the active marker, toolbar, step
+  list, and explanation share the same step number. Test switching map
+  views mid-flow, jumping to a step, opening an alternate branch, and
+  locating an offscreen step with automatic scrolling off.
+- Scroll from the first map band to the last and back at desktop and
+  narrow viewport widths. Check that playback controls and the step
+  count stay visible and usable throughout.
+- Report which files were created or updated and which architecture
+  claims or browser interactions remain unverified.
